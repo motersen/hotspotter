@@ -1,0 +1,53 @@
+#!/usr/bin/env perl
+
+use v5.34;
+use autodie;
+
+use Browser::Open qw/open_browser_cmd/;
+
+# some public hotspots don't provide login pages through the default
+# gateway's IP.
+my %login_pages =
+  ( WIFIonICE => "http://login.wifionice.de/de/" );
+
+my ($gateway, $device) = (split ' ', qx/ip route show/)[2, 4];
+
+# run dns queries against default gateway, reset with:
+# resolvectl dns <interface> ""
+system "sudo resolvectl dns $device $gateway";
+
+my $login_page = $login_pages{get_ssid($device)} || "http://$gateway/";
+
+# open login page (hopefully) in browser and suppress output
+exec qq[${\(open_browser_cmd)} "$login_page" >/dev/null 2>&1];
+
+use Inline C => <<'GET_SSID';
+
+#include "linux/wireless.h"
+#include "sys/socket.h"
+#include "sys/ioctl.h"
+#include "unistd.h"
+#include "string.h"
+#include "stdio.h"
+
+SV* get_ssid(SV *ifname)
+{
+	struct iwreq wrq = {};
+	char ssid[32 + 1];
+	int sock;
+
+	strncpy(wrq.ifr_name, SvPV(ifname, PL_na), IFNAMSIZ);
+
+	wrq.u.essid.pointer = ssid;
+	wrq.u.essid.length = sizeof(ssid);
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+	ioctl(sock, SIOCGIWESSID, &wrq);
+
+	close(sock);
+
+	return newSVpv(ssid, strlen(ssid));
+}
+
+GET_SSID

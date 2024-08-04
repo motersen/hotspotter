@@ -21,7 +21,15 @@ system "sudo resolvectl dns $device $dns";
 my $login_page = $login_pages{get_ssid($device)} || "http://$gateway/";
 
 # open login page (hopefully) in browser and suppress output
-exec qq[${\(open_browser_cmd)} "$login_page" >/dev/null 2>&1];
+my $qute = `command -v qutebrowser 2>/dev/null`;
+if (! $? & 127) {
+  chomp $qute;
+  system($qute, qw[-s tabs.show never -s statusbar.show never], $login_page);
+  system qq/sudo resolvectl dns $device ""/;
+  system "sudo resolvectl revert $device";
+} else {
+  exec qq[${\(open_browser_cmd)} "$login_page" >/dev/null 2>&1];
+}
 
 use Inline C => <<'GET_SSID';
 

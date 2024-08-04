@@ -11,10 +11,12 @@ my %login_pages =
   ( WIFIonICE => "http://login.wifionice.de/de/" );
 
 my ($gateway, $device) = (split ' ', qx/ip route show/)[2, 4];
+my $dns = qx/nmcli -g IP4.DNS dev show $device/;
+chomp $dns;
 
-# run dns queries against default gateway, reset with:
+# run dns queries against network default, reset with:
 # resolvectl dns <interface> ""
-system "sudo resolvectl dns $device $gateway";
+system "sudo resolvectl dns $device $dns";
 
 my $login_page = $login_pages{get_ssid($device)} || "http://$gateway/";
 

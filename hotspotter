@@ -14,6 +14,9 @@ my ($gateway, $device) = (split ' ', qx/ip route show/)[2, 4];
 my $dns = qx/nmcli -g IP4.DNS dev show $device/;
 chomp $dns;
 
+# temporarily disable secure dns, reverted below
+system "sudo resolvectl dnssec $device off";
+system "sudo resolvectl dnsovertls $device off";
 # run dns queries against network default, reset with:
 # resolvectl dns <interface> ""
 system "sudo resolvectl dns $device $dns";
@@ -26,6 +29,7 @@ if (! $? & 127) {
   chomp $qute;
   system($qute, qw[-s tabs.show never -s statusbar.show never], $login_page);
   system qq/sudo resolvectl dns $device ""/;
+  # restore dns settings
   system "sudo resolvectl revert $device";
 } else {
   exec qq[${\(open_browser_cmd)} "$login_page" >/dev/null 2>&1];
